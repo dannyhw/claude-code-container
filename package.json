@@ -1,0 +1,20 @@
+{
+  "name": "claude-code-container",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["server", "cli", "web"],
+  "scripts": {
+    "build-image": "container build --tag claude-dev-env --file container/Dockerfile container/",
+    "server": "bun run server/index.ts",
+    "dev": "bun run --watch server/index.ts",
+    "dev:web": "cd web && bunx --bun vite",
+    "build:web": "cd web && bunx --bun vite build",
+    "start": "bun run build:web && bun run server",
+    "cli": "bun run cli/index.ts",
+    "check": "tsc --build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/notes/*)",
+      "Write(/notes/*)",
+      "Edit(/notes/*)",
+      "Read(/workspace/*)",
+      "Write(/workspace/*)",
+      "Edit(/workspace/*)",
+      "Bash(mkdir -p /notes*)",
+      "Bash(git add *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git commit *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git status *)",
+      "Bash(git switch *)",
+      "Bash(git stash *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)"
+    ],
+    "deny": [
+      "Bash(git push *)",
+      "Bash(git push)",
+      "Bash(git remote *)",
+      "Bash(git clone *)",
+      "Bash(git init --bare *)"
+    ]
+  }
+}

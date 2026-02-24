@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+workspace/*
+!workspace/.gitkeep
+logs/*
+!logs/.gitkeep
+vendor/
+*.log
+.DS_Store
+.env

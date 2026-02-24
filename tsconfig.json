@@ -1,0 +1,8 @@
+{
+  "references": [
+    { "path": "server" },
+    { "path": "cli" },
+    { "path": "web" }
+  ],
+  "files": []
+}
