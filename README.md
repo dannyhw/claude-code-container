@@ -118,8 +118,8 @@ You can override the command before starting. Logs stream in real-time via a tog
 
 ## Todo
 
-- [ ] Persistent threads — save and resume chat threads across sessions
-- [ ] Projects sidebar — browse and switch between projects without the dropdown
+- [x] Persistent threads — save and resume chat threads across sessions
+- [x] Projects sidebar — browse and switch between projects without the dropdown
 - [ ] Diff view for project files — see what changed in the workspace after an agent run
 - [ ] Diff view in chat — inline diffs when Claude writes or edits code via tool uses
 
