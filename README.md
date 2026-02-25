@@ -4,6 +4,9 @@
 
 A web-based interface for running [Claude Code](https://docs.anthropic.com/en/docs/claude-code) agents inside isolated [Apple Containers](https://github.com/apple/container) on macOS. Each agent session runs in its own lightweight VM with full tool access — Node.js, Bun, Python, Git, ffmpeg, and more — while keeping your host machine clean.
 
+<img width="1728" height="1046" alt="image" src="https://github.com/user-attachments/assets/7fbaccfd-fb29-4d92-87cd-81b9f83cc435" />
+
+
 ## Features
 
 - **Streaming chat UI** — real-time SSE streaming of Claude's responses, tool calls, and results
