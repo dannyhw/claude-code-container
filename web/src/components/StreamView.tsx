@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import Markdown from "react-markdown";
-import type { ChatMessage } from "../App";
+import type { ChatMessage } from "../context";
 import { ToolGroup } from "./ToolGroup";
 
 interface Props {

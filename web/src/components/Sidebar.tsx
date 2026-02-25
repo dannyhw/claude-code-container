@@ -1,14 +1,11 @@
 import { useState, useRef, type FormEvent } from "react";
+import { Link, useParams } from "@tanstack/react-router";
 import { Tooltip } from "@base-ui/react/tooltip";
 import type { ThreadMeta } from "../api";
 
 interface Props {
   projects: string[];
-  activeProject: string | null;
-  activeThreadId: string | null;
   threads: ThreadMeta[];
-  onSelectProject: (project: string) => void;
-  onSelectThread: (threadId: string) => void;
   onNewThread: () => void;
   onNewProject: (name: string) => void;
   collapsed: boolean;
@@ -47,11 +44,7 @@ function relativeTime(iso: string): string {
 
 export function Sidebar({
   projects,
-  activeProject,
-  activeThreadId,
   threads,
-  onSelectProject,
-  onSelectThread,
   onNewThread,
   onNewProject,
   collapsed,
@@ -60,6 +53,10 @@ export function Sidebar({
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const params = useParams({ strict: false }) as { project?: string; threadId?: string };
+  const activeProject = params.project ?? null;
+  const activeThreadId = params.threadId ?? null;
 
   const handleNewProject = (e: FormEvent) => {
     e.preventDefault();
@@ -96,9 +93,10 @@ export function Sidebar({
         {/* Projects list */}
         <div className="shrink-0 px-2 pt-2 pb-1 flex flex-col gap-0.5">
           {projects.map((p) => (
-            <button
+            <Link
               key={p}
-              onClick={() => onSelectProject(p)}
+              to="/$project"
+              params={{ project: p }}
               className={[
                 "flex items-center gap-2 px-2 py-1.5 rounded-md text-[13px] font-mono text-left w-full truncate transition-colors cursor-pointer",
                 p === activeProject
@@ -110,7 +108,7 @@ export function Sidebar({
                 <path d="M1 3.5L6 1l5 2.5v5L6 11 1 8.5z" stroke="currentColor" strokeWidth="1" />
               </svg>
               <span className="truncate">{p}</span>
-            </button>
+            </Link>
           ))}
           {showNewProject ? (
             <form onSubmit={handleNewProject} className="px-2 py-1">
@@ -167,9 +165,10 @@ export function Sidebar({
                 </div>
               ) : (
                 threads.map((t) => (
-                  <button
+                  <Link
                     key={t.id}
-                    onClick={() => onSelectThread(t.id)}
+                    to="/$project/$threadId"
+                    params={{ project: activeProject, threadId: t.id }}
                     className={[
                       "flex flex-col gap-0.5 px-2 py-1.5 rounded-md text-left w-full transition-colors cursor-pointer",
                       t.id === activeThreadId
@@ -179,7 +178,7 @@ export function Sidebar({
                   >
                     <span className="text-[13px] truncate leading-tight">{t.title}</span>
                     <span className="text-[11px] text-tx-3">{relativeTime(t.updatedAt)}</span>
-                  </button>
+                  </Link>
                 ))
               )}
             </div>

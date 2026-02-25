@@ -12,7 +12,7 @@
     "build:web": "cd web && bunx --bun vite build",
     "start": "bun run build:web && bun run server",
     "cli": "bun run cli/index.ts",
-    "check": "tsc --build"
+    "check": "tsc --build server cli"
   },
   "devDependencies": {
     "@types/bun": "latest",

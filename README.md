@@ -1,11 +1,10 @@
 # Claude Code Container
 
-> **Warning:** This is an experimental tool hacked together in an evening. Use at your own risk. In fact, you're probably better off not using it at all.
+> **Warning:** This is an experimental tool hacked together in an evening just with Claude. Use at your own risk. In fact, you're probably better off not using it at all.
 
 A web-based interface for running [Claude Code](https://docs.anthropic.com/en/docs/claude-code) agents inside isolated [Apple Containers](https://github.com/apple/container) on macOS. Each agent session runs in its own lightweight VM with full tool access — Node.js, Bun, Python, Git, ffmpeg, and more — while keeping your host machine clean.
 
 <img width="1728" height="1046" alt="image" src="https://github.com/user-attachments/assets/7fbaccfd-fb29-4d92-87cd-81b9f83cc435" />
-
 
 ## Features
 
@@ -74,6 +73,7 @@ Apple Container (ubuntu 24.04)
 5. The conversation is logged to `logs/{project}/`
 
 Each container gets:
+
 - **4 CPUs, 4 GB RAM** (configurable per request)
 - Volume mounts for workspace, notes, and session state
 - A pre-configured `settings.json` with permissive tool access
@@ -84,11 +84,11 @@ After Claude builds a web or mobile app, click **Preview** in the header to star
 
 Auto-detection reads `package.json` and picks the right command:
 
-| Framework | Command | Port | URL scheme |
-|-----------|---------|------|------------|
-| Expo | `bunx expo start --lan --port 8081` | 8081 | `exp://` |
-| Vite | `bun run dev -- --host 0.0.0.0` | 5173 | `http://` |
-| Next.js | `bun run dev -- -H 0.0.0.0` | 3000 | `http://` |
+| Framework | Command                             | Port | URL scheme |
+| --------- | ----------------------------------- | ---- | ---------- |
+| Expo      | `bunx expo start --lan --port 8081` | 8081 | `exp://`   |
+| Vite      | `bun run dev -- --host 0.0.0.0`     | 5173 | `http://`  |
+| Next.js   | `bun run dev -- -H 0.0.0.0`         | 3000 | `http://`  |
 
 You can override the command before starting. Logs stream in real-time via a toggleable panel.
 
@@ -128,7 +128,7 @@ You can override the command before starting. Logs stream in real-time via a tog
 
 ## Environment variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code auth token | Yes |
-| `PORT` | Server port (default `3847`) | No |
+| Variable                  | Description                  | Required |
+| ------------------------- | ---------------------------- | -------- |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code auth token       | Yes      |
+| `PORT`                    | Server port (default `3847`) | No       |

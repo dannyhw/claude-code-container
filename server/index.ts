@@ -20,7 +20,9 @@ app.route("/", agentRoutes);
 app.route("/", devserverRoutes);
 
 // Serve built web assets in production (API routes take priority above)
+// Static assets (js, css, images, etc.)
 app.use("*", serveStatic({ root: "./web/dist" }));
+// SPA fallback — serve index.html for all unmatched routes (client-side routing)
 app.use("*", serveStatic({ root: "./web/dist", path: "index.html" }));
 
 const port = Number(process.env.PORT) || 3847;
