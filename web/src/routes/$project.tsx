@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { fetchThreads } from "../api";
 import { useChatContext } from "../context";
@@ -15,14 +15,23 @@ function ProjectLayout() {
   const { threads } = Route.useLoaderData();
   const { project } = Route.useParams();
   const { setThreads, setTimeline, setSessionId, setError } = useChatContext();
+  const prevProjectRef = useRef(project);
 
-  // Sync loaded threads into context and reset chat state on project change
+  // Always sync loaded threads into context
   useEffect(() => {
     setThreads(threads);
-    setTimeline([]);
-    setSessionId(null);
-    setError(null);
-  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [threads, setThreads]);
+
+  // Only reset chat state when the project actually changes (not on initial mount,
+  // since the child thread route handles its own history loading)
+  useEffect(() => {
+    if (prevProjectRef.current !== project) {
+      prevProjectRef.current = project;
+      setTimeline([]);
+      setSessionId(null);
+      setError(null);
+    }
+  }, [project, setTimeline, setSessionId, setError]);
 
   return <Outlet />;
 }

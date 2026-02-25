@@ -35,6 +35,7 @@ export interface ChatLog {
   exitCode: number;
   duration: number;
   timestamp: string;
+  status?: "pending" | "completed" | "error";
 }
 
 export interface ThreadDetail extends ThreadMeta {

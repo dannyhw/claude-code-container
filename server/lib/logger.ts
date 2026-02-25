@@ -12,6 +12,7 @@ export interface ChatLog {
   exitCode: number;
   duration: number;
   timestamp: string;
+  status: "pending" | "completed" | "error";
 }
 
 export interface ThreadMeta {
@@ -23,6 +24,57 @@ export interface ThreadMeta {
   updatedAt: string;
 }
 
+/** Phase 1: Save the prompt immediately before streaming starts. */
+export async function logPrompt(project: string, prompt: string): Promise<ChatLog> {
+  const projectDir = join(LOGS_DIR, project);
+  await mkdir(projectDir, { recursive: true });
+
+  const timestamp = new Date().toISOString();
+  const id = timestamp.replace(/[:.]/g, "-");
+  const log: ChatLog = {
+    id,
+    project,
+    prompt,
+    response: "",
+    exitCode: 0,
+    duration: 0,
+    timestamp,
+    status: "pending",
+  };
+
+  await writeFile(join(projectDir, `${id}.json`), JSON.stringify(log, null, 2));
+  return log;
+}
+
+/** Phase 2: Update the log with the response after streaming completes. */
+export async function updateLog(
+  project: string,
+  id: string,
+  update: {
+    response: string;
+    exitCode: number;
+    duration: number;
+    assistantText?: string;
+    status: "completed" | "error";
+  },
+): Promise<ChatLog | null> {
+  const filePath = join(LOGS_DIR, project, `${id}.json`);
+  try {
+    const data = await readFile(filePath, "utf-8");
+    const log: ChatLog = JSON.parse(data);
+    log.response = update.response;
+    log.exitCode = update.exitCode;
+    log.duration = update.duration;
+    log.status = update.status;
+    if (update.assistantText) log.assistantText = update.assistantText;
+    await writeFile(filePath, JSON.stringify(log, null, 2));
+    return log;
+  } catch {
+    return null;
+  }
+}
+
+/** Legacy single-phase log (for non-streaming endpoint). */
 export async function logChat(
   project: string,
   prompt: string,
@@ -36,7 +88,16 @@ export async function logChat(
 
   const timestamp = new Date().toISOString();
   const id = timestamp.replace(/[:.]/g, "-");
-  const log: ChatLog = { id, project, prompt, response, exitCode, duration, timestamp };
+  const log: ChatLog = {
+    id,
+    project,
+    prompt,
+    response,
+    exitCode,
+    duration,
+    timestamp,
+    status: exitCode === 0 ? "completed" : "error",
+  };
   if (assistantText) log.assistantText = assistantText;
 
   await writeFile(join(projectDir, `${id}.json`), JSON.stringify(log, null, 2));
@@ -131,6 +192,18 @@ export async function appendToThread(
 
   await writeThreads(project, threads);
   return thread;
+}
+
+export async function updateThreadSessionId(
+  project: string,
+  threadId: string,
+  sessionId: string,
+): Promise<void> {
+  const threads = await readThreads(project);
+  const thread = threads.find((t) => t.id === threadId);
+  if (!thread) return;
+  thread.sessionId = sessionId;
+  await writeThreads(project, threads);
 }
 
 export async function updateThreadTitle(

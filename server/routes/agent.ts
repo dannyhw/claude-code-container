@@ -8,10 +8,13 @@ import {
   getLog,
   listLogs,
   logChat,
+  logPrompt,
+  updateLog,
   listThreads,
   getThread,
   createThread,
   appendToThread,
+  updateThreadSessionId,
 } from "../lib/logger";
 
 const WORKSPACE_DIR = resolve(import.meta.dir, "../../workspace");
@@ -80,6 +83,12 @@ app.post("/agent/stream", async (c) => {
   const projectPath = join(WORKSPACE_DIR, body.project);
   await mkdir(projectPath, { recursive: true });
 
+  // Phase 1: Save prompt to disk and attach to thread BEFORE streaming starts
+  const log = await logPrompt(body.project, body.prompt);
+  if (body.threadId) {
+    await appendToThread(body.project, body.threadId, log.id);
+  }
+
   const stream = await streamClaudeFromContainer(body.project, body.prompt, {
     model: body.model,
     timeout: body.timeout,
@@ -129,16 +138,24 @@ app.post("/agent/stream", async (c) => {
       }
     } finally {
       reader.releaseLock();
-      // Log the completed chat
+      // Phase 2: Update the log with the response
       const duration = Date.now() - startTime;
       const response = resultEvent ? JSON.stringify(resultEvent) : "";
       const exitCode = resultEvent?.is_error ? 1 : 0;
       const assistantText = assistantTextParts.length > 0 ? assistantTextParts.join("\n\n") : undefined;
-      const log = await logChat(body.project, body.prompt, response, exitCode, duration, assistantText);
+      const status = resultEvent ? (exitCode === 0 ? "completed" : "error") : "error";
 
-      // Append to thread if threadId provided
-      if (body.threadId) {
-        await appendToThread(body.project, body.threadId, log.id, capturedSessionId ?? undefined);
+      await updateLog(body.project, log.id, {
+        response,
+        exitCode,
+        duration,
+        assistantText,
+        status: status as "completed" | "error",
+      });
+
+      // Update thread sessionId if we captured one
+      if (body.threadId && capturedSessionId) {
+        await updateThreadSessionId(body.project, body.threadId, capturedSessionId);
       }
     }
   });
