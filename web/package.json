@@ -13,7 +13,8 @@
     "@tanstack/react-router": "^1",
     "react": "^19",
     "react-dom": "^19",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "valibot": "^1.2.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",

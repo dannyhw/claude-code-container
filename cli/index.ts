@@ -36,15 +36,28 @@ const project = getFlag("--project");
 const model = getFlag("--model");
 const timeout = getFlag("--timeout");
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function request(path: string, opts?: RequestInit): Promise<any> {
+interface ProjectsResponse {
+  projects: string[];
+}
+
+interface LogsResponse {
+  logs: string[];
+}
+
+interface AgentResponse {
+  duration: number;
+  exitCode: number;
+  response: string;
+}
+
+async function request<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${server}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...opts,
   });
-  const data = await res.json();
+  const data = (await res.json()) as T & { error?: string };
   if (!res.ok) {
-    console.error(`Error (${res.status}):`, (data as { error?: string }).error ?? data);
+    console.error(`Error (${res.status}):`, data.error ?? data);
     process.exit(1);
   }
   return data;
@@ -52,7 +65,7 @@ async function request(path: string, opts?: RequestInit): Promise<any> {
 
 // List projects
 if (hasFlag("--list-projects")) {
-  const data = await request("/projects");
+  const data = await request<ProjectsResponse>("/projects");
   if (data.projects.length === 0) {
     console.log("No projects found.");
   } else {
@@ -68,7 +81,7 @@ if (hasFlag("--list-logs")) {
     console.error("--project is required for --list-logs");
     process.exit(1);
   }
-  const data = await request(`/logs/${project}`);
+  const data = await request<LogsResponse>(`/logs/${project}`);
   if (data.logs.length === 0) {
     console.log(`No logs for project "${project}".`);
   } else {
@@ -94,12 +107,13 @@ if (logId) {
 // Find the prompt: first non-flag argument
 let promptText: string | undefined;
 for (let i = 0; i < args.length; i++) {
-  if (args[i].startsWith("--")) {
+  const arg = args[i]!;
+  if (arg.startsWith("--")) {
     // Skip flags and their values
-    if (["--project", "--server", "--model", "--timeout"].includes(args[i])) i++;
+    if (["--project", "--server", "--model", "--timeout"].includes(arg)) i++;
     continue;
   }
-  promptText = args[i];
+  promptText = arg;
   break;
 }
 
@@ -114,7 +128,7 @@ if (!project) {
 
 console.log(`Sending prompt to project "${project}"...`);
 
-const data = await request("/agent", {
+const data = await request<AgentResponse>("/agent", {
   method: "POST",
   body: JSON.stringify({
     prompt: promptText,

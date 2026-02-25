@@ -12,7 +12,7 @@ export interface ChatLog {
   exitCode: number;
   duration: number;
   timestamp: string;
-  status: "pending" | "completed" | "error";
+  status: "pending" | "streaming" | "completed" | "error";
 }
 
 export interface ThreadMeta {
@@ -44,6 +44,24 @@ export async function logPrompt(project: string, prompt: string): Promise<ChatLo
 
   await writeFile(join(projectDir, `${id}.json`), JSON.stringify(log, null, 2));
   return log;
+}
+
+/** Flush intermediate progress (assistantText) to the log while still streaming. */
+export async function flushLogProgress(
+  project: string,
+  id: string,
+  assistantText: string,
+): Promise<void> {
+  const filePath = join(LOGS_DIR, project, `${id}.json`);
+  try {
+    const data = await readFile(filePath, "utf-8");
+    const log: ChatLog = JSON.parse(data);
+    log.assistantText = assistantText;
+    log.status = "streaming";
+    await writeFile(filePath, JSON.stringify(log, null, 2));
+  } catch {
+    // best-effort
+  }
 }
 
 /** Phase 2: Update the log with the response after streaming completes. */

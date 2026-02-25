@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { createRootRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import { Tooltip } from "@base-ui/react/tooltip";
-import { ChatProvider, useChatContext, processTimeline } from "../context";
+import { ChatProvider, useChatContext } from "../context";
 import { PromptForm } from "../components/PromptForm";
 import { DevServerPanel } from "../components/DevServerPanel";
 import { Sidebar } from "../components/Sidebar";
@@ -26,9 +26,13 @@ function RootWrapper() {
 
 function RootLayout() {
   const navigate = useNavigate();
-  const params = useParams({ strict: false }) as { project?: string; threadId?: string };
-  const activeProject = params.project ?? null;
-  const activeThreadId = params.threadId ?? null;
+  const { activeProject, activeThreadId } = useParams({
+    strict: false,
+    select: (params: Record<string, string | undefined>) => ({
+      activeProject: params.project ?? null,
+      activeThreadId: params.threadId ?? null,
+    }),
+  });
 
   const {
     timeline,
@@ -41,8 +45,6 @@ function RootLayout() {
     setError,
     handleSubmit,
   } = useChatContext();
-
-  const messages = useMemo(() => processTimeline(timeline), [timeline]);
 
   const [projects, setProjects] = useState<string[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(

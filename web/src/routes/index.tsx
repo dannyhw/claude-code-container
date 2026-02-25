@@ -4,8 +4,9 @@ import { fetchProjects } from "../api";
 export const Route = createFileRoute("/")({
   loader: async () => {
     const projects = await fetchProjects();
-    if (projects.length > 0) {
-      throw redirect({ to: "/$project", params: { project: projects[0] } });
+    const first = projects[0];
+    if (first) {
+      throw redirect({ to: "/$project", params: { project: first } });
     }
     return { projects };
   },

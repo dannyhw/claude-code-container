@@ -54,9 +54,13 @@ export function Sidebar({
   const [newProjectName, setNewProjectName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const params = useParams({ strict: false }) as { project?: string; threadId?: string };
-  const activeProject = params.project ?? null;
-  const activeThreadId = params.threadId ?? null;
+  const { activeProject, activeThreadId } = useParams({
+    strict: false,
+    select: (params: Record<string, string | undefined>) => ({
+      activeProject: params.project ?? null,
+      activeThreadId: params.threadId ?? null,
+    }),
+  });
 
   const handleNewProject = (e: FormEvent) => {
     e.preventDefault();

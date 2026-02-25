@@ -66,9 +66,9 @@ export function StreamView({ messages, running }: Props) {
             <div key={i} className="flex items-center gap-2 py-3 animate-fadein">
               <div className="flex-1 h-px bg-bdr" />
               <div className="flex items-center gap-1.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${event.is_error ? "bg-err" : "bg-ok"}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${event.interrupted ? "bg-tx-3" : event.is_error ? "bg-err" : "bg-ok"}`} />
                 <span className="text-[11px] text-tx-3 font-mono tracking-wide">
-                  {event.is_error ? "error" : "completed"}
+                  {event.interrupted ? "interrupted" : event.is_error ? "error" : "completed"}
                   {event.num_turns != null && ` · ${event.num_turns} turns`}
                   {event.total_cost_usd != null && ` · $${event.total_cost_usd.toFixed(4)}`}
                 </span>

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { mkdir, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import * as v from "valibot";
 import { runClaudeInContainer, streamClaudeFromContainer } from "../lib/container";
 import type { ClaudeStreamEvent } from "../lib/container";
 import {
@@ -10,6 +11,7 @@ import {
   logChat,
   logPrompt,
   updateLog,
+  flushLogProgress,
   listThreads,
   getThread,
   createThread,
@@ -21,29 +23,42 @@ const WORKSPACE_DIR = resolve(import.meta.dir, "../../workspace");
 
 const app = new Hono();
 
-interface AgentBody {
-  prompt: string;
-  project: string;
-  model?: string;
-  timeout?: number;
-  cpus?: number;
-  memory?: string;
-  sessionId?: string;
-  threadId?: string;
-}
+const ProjectNameSchema = v.pipe(
+  v.string(),
+  v.regex(/^[a-zA-Z0-9_-]+$/, "project name must be alphanumeric with hyphens/underscores only"),
+);
 
-function validateAgentBody(body: AgentBody): string | null {
-  if (!body.prompt || !body.project) return "prompt and project are required";
-  if (!/^[a-zA-Z0-9_-]+$/.test(body.project))
-    return "project name must be alphanumeric with hyphens/underscores only";
-  return null;
+const AgentBodySchema = v.object({
+  prompt: v.pipe(v.string(), v.minLength(1, "prompt is required")),
+  project: ProjectNameSchema,
+  model: v.optional(v.string()),
+  timeout: v.optional(v.number()),
+  cpus: v.optional(v.number()),
+  memory: v.optional(v.string()),
+  sessionId: v.optional(v.string()),
+  threadId: v.optional(v.string()),
+});
+
+const CreateProjectSchema = v.object({
+  name: ProjectNameSchema,
+});
+
+const CreateThreadSchema = v.object({
+  title: v.pipe(v.string(), v.minLength(1, "title is required")),
+});
+
+function parseBody<T>(schema: v.GenericSchema<unknown, T>, data: unknown): { data: T } | { error: string } {
+  const result = v.safeParse(schema, data);
+  if (result.success) return { data: result.output };
+  const issue = result.issues[0];
+  return { error: issue?.message ?? "Invalid request body" };
 }
 
 // Main agent endpoint
 app.post("/agent", async (c) => {
-  const body = await c.req.json<AgentBody>();
-  const err = validateAgentBody(body);
-  if (err) return c.json({ error: err }, 400);
+  const parsed = parseBody(AgentBodySchema, await c.req.json());
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+  const body = parsed.data;
 
   const projectPath = join(WORKSPACE_DIR, body.project);
   await mkdir(projectPath, { recursive: true });
@@ -76,9 +91,9 @@ app.post("/agent", async (c) => {
 
 // Streaming agent endpoint (SSE)
 app.post("/agent/stream", async (c) => {
-  const body = await c.req.json<AgentBody>();
-  const err = validateAgentBody(body);
-  if (err) return c.json({ error: err }, 400);
+  const parsed = parseBody(AgentBodySchema, await c.req.json());
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+  const body = parsed.data;
 
   const projectPath = join(WORKSPACE_DIR, body.project);
   await mkdir(projectPath, { recursive: true });
@@ -103,6 +118,20 @@ app.post("/agent/stream", async (c) => {
   const assistantTextParts: string[] = [];
   const startTime = Date.now();
 
+  // Batched flush: write assistant text to disk every ~500 chars of new content
+  const FLUSH_THRESHOLD = 500;
+  let charsSinceFlush = 0;
+  let flushInFlight = false;
+
+  const maybeFlush = async () => {
+    if (flushInFlight || charsSinceFlush < FLUSH_THRESHOLD) return;
+    flushInFlight = true;
+    charsSinceFlush = 0;
+    const text = assistantTextParts.join("\n\n");
+    await flushLogProgress(body.project, log.id, text);
+    flushInFlight = false;
+  };
+
   return streamSSE(c, async (sseStream) => {
     const reader = stream.getReader();
     try {
@@ -113,21 +142,26 @@ app.post("/agent/stream", async (c) => {
 
         if (value.type === "result") resultEvent = value;
 
-        // Capture session ID from system/init event
-        if (value.type === "system" && value.subtype === "init" && value.session_id) {
-          capturedSessionId = value.session_id as string;
+        // Capture session ID from system/init event and persist immediately
+        if (value.type === "system" && value.subtype === "init" && typeof value.session_id === "string") {
+          capturedSessionId = value.session_id;
+          if (body.threadId) {
+            updateThreadSessionId(body.project, body.threadId, capturedSessionId).catch(() => {});
+          }
         }
 
-        // Collect assistant text blocks
+        // Collect assistant text blocks and track chars for batched flush
         if (value.type === "assistant") {
-          const content = (value as any).message?.content;
+          const content = value.message?.content;
           if (Array.isArray(content)) {
             for (const block of content) {
               if (block.type === "text" && block.text) {
                 assistantTextParts.push(block.text);
+                charsSinceFlush += block.text.length;
               }
             }
           }
+          await maybeFlush();
         }
 
         await sseStream.writeSSE({
@@ -138,19 +172,19 @@ app.post("/agent/stream", async (c) => {
       }
     } finally {
       reader.releaseLock();
-      // Phase 2: Update the log with the response
+      // Final update: write full response + mark completed/error
       const duration = Date.now() - startTime;
       const response = resultEvent ? JSON.stringify(resultEvent) : "";
       const exitCode = resultEvent?.is_error ? 1 : 0;
       const assistantText = assistantTextParts.length > 0 ? assistantTextParts.join("\n\n") : undefined;
-      const status = resultEvent ? (exitCode === 0 ? "completed" : "error") : "error";
+      const status: "completed" | "error" = resultEvent && exitCode === 0 ? "completed" : "error";
 
       await updateLog(body.project, log.id, {
         response,
         exitCode,
         duration,
         assistantText,
-        status: status as "completed" | "error",
+        status,
       });
 
       // Update thread sessionId if we captured one
@@ -173,13 +207,11 @@ app.get("/projects", async (c) => {
 });
 
 app.post("/projects", async (c) => {
-  const body = await c.req.json<{ name: string }>();
-  if (!body.name || !/^[a-zA-Z0-9_-]+$/.test(body.name)) {
-    return c.json({ error: "valid project name required (alphanumeric, hyphens, underscores)" }, 400);
-  }
-  const projectPath = join(WORKSPACE_DIR, body.name);
+  const parsed = parseBody(CreateProjectSchema, await c.req.json());
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+  const projectPath = join(WORKSPACE_DIR, parsed.data.name);
   await mkdir(projectPath, { recursive: true });
-  return c.json({ name: body.name, path: projectPath }, 201);
+  return c.json({ name: parsed.data.name, path: projectPath }, 201);
 });
 
 // Threads
@@ -206,9 +238,9 @@ app.get("/threads/:project/:threadId", async (c) => {
 
 app.post("/threads/:project", async (c) => {
   const project = c.req.param("project");
-  const body = await c.req.json<{ title: string }>();
-  if (!body.title) return c.json({ error: "title is required" }, 400);
-  const thread = await createThread(project, body.title);
+  const parsed = parseBody(CreateThreadSchema, await c.req.json());
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+  const thread = await createThread(project, parsed.data.title);
   return c.json(thread, 201);
 });
 

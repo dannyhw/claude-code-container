@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { fetchThread, type ChatLog } from "../../api";
+import { fetchThread, type ChatLog, type StreamEvent } from "../../api";
 import { useChatContext, processTimeline, type TimelineEntry } from "../../context";
 import { StreamView } from "../../components/StreamView";
 
@@ -42,12 +42,16 @@ function ThreadView() {
         const pending: ChatLog[] = [];
 
         for (const log of detail.logs) {
-          // Detect incomplete logs (prompt saved but stream never finished)
-          if (log.status === "pending" || (log.status === "error" && !log.response)) {
+          const incomplete = log.status === "pending" || log.status === "streaming";
+          const failedWithNoContent = incomplete && !log.assistantText;
+
+          // Truly failed: no content was ever captured — offer retry
+          if (failedWithNoContent) {
             pending.push(log);
             continue;
           }
 
+          // Normal or partially recovered log — render what we have
           restored.push({ _tag: "user", text: log.prompt });
           if (log.assistantText) {
             restored.push({
@@ -56,7 +60,15 @@ function ThreadView() {
               message: { content: [{ type: "text", text: log.assistantText }] },
             });
           }
-          if (log.response) {
+          // If the stream was interrupted, show an "interrupted" result marker
+          if (incomplete) {
+            const interruptedEvent: StreamEvent = {
+              type: "result",
+              is_error: true,
+              interrupted: true,
+            };
+            restored.push({ _tag: "event", ...interruptedEvent });
+          } else if (log.response) {
             try {
               const parsed = JSON.parse(log.response);
               if (parsed.type === "result") {

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "hono": "^4"
+    "hono": "^4",
+    "valibot": "^1.2.0"
   }
 }

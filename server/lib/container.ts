@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 
 const ROOT_DIR = resolve(import.meta.dir, "../..");
 const WORKSPACE_DIR = join(ROOT_DIR, "workspace");
@@ -19,9 +19,9 @@ function loadClaudeToken(): string {
 
   // Then check .env file
   if (existsSync(ENV_FILE)) {
-    const content = require("node:fs").readFileSync(ENV_FILE, "utf-8") as string;
+    const content = readFileSync(ENV_FILE, "utf-8");
     const match = content.match(/^CLAUDE_CODE_OAUTH_TOKEN=(.+)$/m);
-    if (match) return match[1].trim();
+    if (match?.[1]) return match[1].trim();
   }
 
   throw new Error(
@@ -106,6 +106,7 @@ export interface ClaudeStreamEvent {
   total_cost_usd?: number;
   model?: string;
   session_id?: string;
+  interrupted?: boolean;
   [key: string]: unknown;
 }
 
