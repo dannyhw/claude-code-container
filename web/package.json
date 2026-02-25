@@ -9,13 +9,17 @@
     "preview": "bunx --bun vite preview"
   },
   "dependencies": {
+    "@base-ui/react": "^1.2.0",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
+    "tailwindcss": "^4.2.1",
     "vite": "^6"
   }
 }

@@ -24,113 +24,74 @@ export function ToolGroup({ tools }: Props) {
     });
   };
 
+  const allDone = tools.every((t) => t.result);
+
   return (
-    <div style={{
-      margin: "2px 0",
-      padding: "8px 12px",
-      background: "#161b22",
-      border: "1px solid #30363d",
-      borderRadius: 8,
-      fontSize: 13,
-    }}>
-      <div
+    <div className="border border-bdr rounded-lg overflow-hidden">
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          cursor: "pointer",
-          color: "#8b949e",
-          userSelect: "none",
-        }}
+        className="flex items-center gap-2 w-full px-3 py-2 bg-surface text-tx-2 text-[13px] font-sans cursor-pointer select-none text-left hover:bg-hovr transition-colors"
       >
-        <span style={{
-          display: "inline-block",
-          transition: "transform 0.15s",
-          transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
-          fontSize: 10,
-        }}>
-          ▶
-        </span>
-        <span style={{ color: "#d29922" }}>
-          {tools.length} tool use{tools.length !== 1 ? "s" : ""}
+        <svg
+          width="10" height="10" viewBox="0 0 10 10" fill="none"
+          className="shrink-0 transition-transform duration-150"
+          style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+        >
+          <path d="M3 1l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {allDone && (
+          <div className="w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
+        )}
+        <span className="font-mono text-xs">
+          {tools.length} tool{tools.length !== 1 ? "s" : ""}
         </span>
         {!expanded && (
-          <span style={{ color: "#484f58", marginLeft: 4 }}>
+          <span className="text-tx-3 text-xs font-mono overflow-hidden text-ellipsis whitespace-nowrap">
             {tools.map((t) => t.name).join(", ")}
           </span>
         )}
-      </div>
+      </button>
 
       {expanded && (
-        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="border-t border-bdr">
           {tools.map((tool, i) => (
-            <div key={i} style={{
-              padding: "6px 10px",
-              background: "#0d1117",
-              borderRadius: 6,
-              border: "1px solid #21262d",
-            }}>
-              <div
+            <div key={i} className={i < tools.length - 1 ? "border-b border-bdr" : ""}>
+              <button
+                type="button"
                 onClick={() => toggleTool(i)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  cursor: "pointer",
-                  userSelect: "none",
-                }}
+                className="flex items-center gap-2 w-full py-[7px] pl-7 pr-3 bg-elevated text-tx-2 text-xs font-mono cursor-pointer select-none text-left hover:bg-hovr transition-colors"
               >
-                <span style={{
-                  display: "inline-block",
-                  transition: "transform 0.15s",
-                  transform: expandedTools.has(i) ? "rotate(90deg)" : "rotate(0deg)",
-                  fontSize: 10,
-                  color: "#8b949e",
-                }}>
-                  ▶
-                </span>
-                <span style={{ color: "#58a6ff", fontWeight: 500 }}>{tool.name}</span>
+                <svg
+                  width="8" height="8" viewBox="0 0 10 10" fill="none"
+                  className="shrink-0 transition-transform duration-150"
+                  style={{ transform: expandedTools.has(i) ? "rotate(90deg)" : "rotate(0deg)" }}
+                >
+                  <path d="M3 1l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="text-tx">{tool.name}</span>
                 {tool.result && (
-                  <span style={{ color: "#3fb950", fontSize: 11, marginLeft: "auto" }}>✓</span>
+                  <div className="w-[5px] h-[5px] rounded-full bg-ok ml-auto shrink-0" />
                 )}
-              </div>
+              </button>
               {expandedTools.has(i) && (
-                <div style={{ marginTop: 6 }}>
+                <div className="px-3 pb-2 pl-9">
                   {tool.input != null && (
-                    <div style={{ marginBottom: 4 }}>
-                      <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 2 }}>Input:</div>
-                      <pre style={{
-                        margin: 0,
-                        padding: 8,
-                        background: "#010409",
-                        borderRadius: 4,
-                        fontSize: 11,
-                        overflow: "auto",
-                        maxHeight: 200,
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        color: "#8b949e",
-                      }}>
+                    <div className="mb-1.5">
+                      <div className="text-[10px] text-tx-3 uppercase tracking-wider mb-1 font-medium">
+                        Input
+                      </div>
+                      <pre className="m-0 p-2.5 bg-root border border-bdr rounded-md text-[11px] font-mono overflow-auto max-h-[200px] whitespace-pre-wrap break-words text-tx-2 leading-normal">
                         {JSON.stringify(tool.input, null, 2)}
                       </pre>
                     </div>
                   )}
                   {tool.result && (
                     <div>
-                      <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 2 }}>Result:</div>
-                      <pre style={{
-                        margin: 0,
-                        padding: 8,
-                        background: "#010409",
-                        borderRadius: 4,
-                        fontSize: 11,
-                        overflow: "auto",
-                        maxHeight: 200,
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        color: "#8b949e",
-                      }}>
+                      <div className="text-[10px] text-tx-3 uppercase tracking-wider mb-1 font-medium">
+                        Result
+                      </div>
+                      <pre className="m-0 p-2.5 bg-root border border-bdr rounded-md text-[11px] font-mono overflow-auto max-h-[200px] whitespace-pre-wrap break-words text-tx-2 leading-normal">
                         {JSON.stringify(tool.result, null, 2)}
                       </pre>
                     </div>

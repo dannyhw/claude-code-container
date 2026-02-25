@@ -4,8 +4,8 @@ import { existsSync, mkdirSync } from "node:fs";
 const ROOT_DIR = resolve(import.meta.dir, "../..");
 const WORKSPACE_DIR = join(ROOT_DIR, "workspace");
 const CONTAINER_DIR = join(ROOT_DIR, "container");
-const CLAUDE_CONFIG_DIR = join(CONTAINER_DIR, "claude-config");
 const NOTES_DIR = join(ROOT_DIR, "notes");
+const STATE_DIR = join(ROOT_DIR, "state");
 const ENV_FILE = join(ROOT_DIR, ".env");
 const IMAGE_NAME = "claude-dev-env";
 
@@ -93,6 +93,7 @@ export interface RunOptions {
   timeout?: number;
   cpus?: number;
   memory?: string;
+  sessionId?: string;
 }
 
 export interface ClaudeStreamEvent {
@@ -112,7 +113,9 @@ function buildContainerArgs(project: string, prompt: string, opts: RunOptions = 
   const token = loadClaudeToken();
   const projectPath = join(WORKSPACE_DIR, project);
   const notesPath = join(NOTES_DIR, project);
+  const statePath = join(STATE_DIR, project);
   mkdirSync(notesPath, { recursive: true });
+  mkdirSync(statePath, { recursive: true });
   const cpus = opts.cpus ?? 4;
   const memory = opts.memory ?? "4g";
 
@@ -124,18 +127,23 @@ function buildContainerArgs(project: string, prompt: string, opts: RunOptions = 
     "--memory", memory,
     "--env", `CLAUDE_CODE_OAUTH_TOKEN=${token}`,
     "--volume", `${projectPath}:/workspace`,
-    "--volume", `${CLAUDE_CONFIG_DIR}:/home/dev/.claude`,
     "--volume", `${notesPath}:/notes`,
+    "--volume", `${statePath}:/home/dev/.claude/projects/-workspace`,
     IMAGE_NAME,
     "-p",
     "--verbose",
     "--output-format", "stream-json",
-    prompt,
   ];
 
-  if (opts.model) {
-    args.splice(args.indexOf(prompt), 0, "--model", opts.model);
+  if (opts.sessionId) {
+    args.push("--resume", opts.sessionId);
   }
+
+  if (opts.model) {
+    args.push("--model", opts.model);
+  }
+
+  args.push(prompt);
 
   return args;
 }

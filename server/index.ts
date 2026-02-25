@@ -3,6 +3,7 @@ import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import agentRoutes from "./routes/agent";
+import devserverRoutes from "./routes/devserver";
 
 const app = new Hono();
 
@@ -16,6 +17,7 @@ app.get("/health", (c) => {
 
 // Mount API routes
 app.route("/", agentRoutes);
+app.route("/", devserverRoutes);
 
 // Serve built web assets in production (API routes take priority above)
 app.use("*", serveStatic({ root: "./web/dist" }));

@@ -17,6 +17,7 @@ interface AgentBody {
   timeout?: number;
   cpus?: number;
   memory?: string;
+  sessionId?: string;
 }
 
 function validateAgentBody(body: AgentBody): string | null {
@@ -41,6 +42,7 @@ app.post("/agent", async (c) => {
       timeout: body.timeout,
       cpus: body.cpus,
       memory: body.memory,
+      sessionId: body.sessionId,
     });
 
     const log = await logChat(body.project, body.prompt, result.stdout, result.exitCode, result.duration);
@@ -74,6 +76,7 @@ app.post("/agent/stream", async (c) => {
     timeout: body.timeout,
     cpus: body.cpus,
     memory: body.memory,
+    sessionId: body.sessionId,
   });
 
   let eventId = 0;

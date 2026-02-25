@@ -24,14 +24,86 @@ export async function fetchProjects(): Promise<string[]> {
   return data.projects;
 }
 
+export async function createProject(name: string): Promise<string> {
+  const res = await fetch("/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error ?? "Failed to create project");
+  }
+  const data = await res.json();
+  return data.name;
+}
+
+// Dev server
+
+export interface DevServerInfo {
+  url: string;
+  port: number;
+  containerPort: number;
+  command: string;
+  status: "starting" | "running" | "stopped" | "error";
+  error?: string;
+  project?: string;
+  startedAt?: number;
+}
+
+export async function startDevServer(
+  project: string,
+  command?: string,
+  port?: number,
+): Promise<DevServerInfo> {
+  const res = await fetch("/devserver/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project, command, port }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error ?? "Failed to start dev server");
+  }
+  return res.json();
+}
+
+export async function stopDevServer(project: string): Promise<void> {
+  const res = await fetch("/devserver/stop", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error ?? "Failed to stop dev server");
+  }
+}
+
+export async function detectDevServerCommand(project: string): Promise<{ command: string; containerPort: number } | null> {
+  const res = await fetch(`/devserver/detect/${encodeURIComponent(project)}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function fetchDevServerStatus(project: string): Promise<DevServerInfo | null> {
+  const res = await fetch(`/devserver/status/${encodeURIComponent(project)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to fetch dev server status");
+  return res.json();
+}
+
+// Agent streaming
+
 export async function* streamAgent(
   project: string,
   prompt: string,
+  sessionId?: string,
 ): AsyncGenerator<StreamEvent> {
   const res = await fetch("/agent/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ project, prompt }),
+    body: JSON.stringify({ project, prompt, sessionId }),
   });
 
   if (!res.ok) {

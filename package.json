@@ -5,6 +5,7 @@
   "workspaces": ["server", "cli", "web"],
   "scripts": {
     "build-image": "container build --tag claude-dev-env --file container/Dockerfile container/",
+    "rebuild-image": "container image rm claude-dev-env 2>/dev/null; container build --tag claude-dev-env --file container/Dockerfile container/",
     "server": "bun run server/index.ts",
     "dev": "bun run --watch server/index.ts",
     "dev:web": "cd web && bunx --bun vite",
