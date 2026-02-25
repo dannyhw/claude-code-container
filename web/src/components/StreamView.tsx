@@ -17,10 +17,10 @@ export function StreamView({ messages, running }: Props) {
 
   return (
     <div className="flex flex-col gap-0.5">
-      {messages.map((msg, i) => {
+      {messages.map((msg) => {
         if (msg.kind === "user") {
           return (
-            <div key={i} className="flex justify-end mb-4 animate-fadein">
+            <div key={msg.id} className="flex justify-end mb-4 animate-fadein">
               <div className="max-w-[80%] px-4 py-2.5 bg-elevated border border-bdr rounded-xl text-tx text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {msg.text}
               </div>
@@ -30,12 +30,10 @@ export function StreamView({ messages, running }: Props) {
 
         if (msg.kind === "system") {
           return (
-            <div key={i} className="flex items-center gap-2 py-2 animate-fadein">
+            <div key={msg.id} className="flex items-center gap-2 py-2 animate-fadein">
               <div className="flex-1 h-px bg-bdr" />
               <span className="text-[11px] text-tx-3 font-mono tracking-wide whitespace-nowrap">
-                {msg.event.subtype === "init"
-                  ? msg.event.model
-                  : msg.event.subtype ?? "system"}
+                {msg.event.subtype === "init" ? msg.event.model : (msg.event.subtype ?? "system")}
               </span>
               <div className="flex-1 h-px bg-bdr" />
             </div>
@@ -44,7 +42,7 @@ export function StreamView({ messages, running }: Props) {
 
         if (msg.kind === "assistant-text") {
           return (
-            <div key={i} className="py-3 animate-fadein" style={{ animationDelay: `${Math.min(i * 0.05, 0.3)}s`, animationFillMode: "backwards" }}>
+            <div key={msg.id} className="py-3 animate-fadein">
               <div className="text-sm leading-[1.7] text-tx break-words prose-stream">
                 <Markdown>{msg.text}</Markdown>
               </div>
@@ -54,7 +52,7 @@ export function StreamView({ messages, running }: Props) {
 
         if (msg.kind === "tool-group") {
           return (
-            <div key={i} className="py-1 animate-fadein" style={{ animationDelay: `${Math.min(i * 0.05, 0.3)}s`, animationFillMode: "backwards" }}>
+            <div key={msg.id} className="py-1 animate-fadein">
               <ToolGroup tools={msg.tools} />
             </div>
           );
@@ -63,14 +61,16 @@ export function StreamView({ messages, running }: Props) {
         if (msg.kind === "result") {
           const { event } = msg;
           return (
-            <div key={i} className="flex items-center gap-2 py-3 animate-fadein">
+            <div key={msg.id} className="flex items-center gap-2 py-3 animate-fadein">
               <div className="flex-1 h-px bg-bdr" />
               <div className="flex items-center gap-1.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${event.interrupted ? "bg-tx-3" : event.is_error ? "bg-err" : "bg-ok"}`} />
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${event.interrupted ? "bg-tx-3" : event.is_error ? "bg-err" : "bg-ok"}`}
+                />
                 <span className="text-[11px] text-tx-3 font-mono tracking-wide">
                   {event.interrupted ? "interrupted" : event.is_error ? "error" : "completed"}
-                  {event.num_turns != null && ` · ${event.num_turns} turns`}
-                  {event.total_cost_usd != null && ` · $${event.total_cost_usd.toFixed(4)}`}
+                  {event.num_turns !== undefined && ` · ${event.num_turns} turns`}
+                  {event.total_cost_usd !== undefined && ` · $${event.total_cost_usd.toFixed(4)}`}
                 </span>
               </div>
               <div className="flex-1 h-px bg-bdr" />

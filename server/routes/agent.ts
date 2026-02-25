@@ -47,7 +47,10 @@ const CreateThreadSchema = v.object({
   title: v.pipe(v.string(), v.minLength(1, "title is required")),
 });
 
-function parseBody<T>(schema: v.GenericSchema<unknown, T>, data: unknown): { data: T } | { error: string } {
+function parseBody<T>(
+  schema: v.GenericSchema<unknown, T>,
+  data: unknown,
+): { data: T } | { error: string } {
   const result = v.safeParse(schema, data);
   if (result.success) return { data: result.output };
   const issue = result.issues[0];
@@ -72,7 +75,13 @@ app.post("/agent", async (c) => {
       sessionId: body.sessionId,
     });
 
-    const log = await logChat(body.project, body.prompt, result.stdout, result.exitCode, result.duration);
+    const log = await logChat(
+      body.project,
+      body.prompt,
+      result.stdout,
+      result.exitCode,
+      result.duration,
+    );
 
     return c.json({
       id: log.id,
@@ -116,19 +125,26 @@ app.post("/agent/stream", async (c) => {
   let resultEvent: ClaudeStreamEvent | null = null;
   let capturedSessionId: string | null = null;
   const assistantTextParts: string[] = [];
+  const allEvents: ClaudeStreamEvent[] = [];
   const startTime = Date.now();
 
-  // Batched flush: write assistant text to disk every ~500 chars of new content
-  const FLUSH_THRESHOLD = 500;
+  // Batched flush: write progress to disk periodically while streaming
+  // Triggers every ~500 chars of assistant text OR every 10 events, whichever comes first
+  const FLUSH_CHAR_THRESHOLD = 500;
+  const FLUSH_EVENT_THRESHOLD = 10;
   let charsSinceFlush = 0;
+  let eventsSinceFlush = 0;
   let flushInFlight = false;
 
   const maybeFlush = async () => {
-    if (flushInFlight || charsSinceFlush < FLUSH_THRESHOLD) return;
+    const shouldFlush =
+      charsSinceFlush >= FLUSH_CHAR_THRESHOLD || eventsSinceFlush >= FLUSH_EVENT_THRESHOLD;
+    if (flushInFlight || !shouldFlush) return;
     flushInFlight = true;
     charsSinceFlush = 0;
+    eventsSinceFlush = 0;
     const text = assistantTextParts.join("\n\n");
-    await flushLogProgress(body.project, log.id, text);
+    await flushLogProgress(body.project, log.id, text, [...allEvents]);
     flushInFlight = false;
   };
 
@@ -136,21 +152,28 @@ app.post("/agent/stream", async (c) => {
     const reader = stream.getReader();
     try {
       while (true) {
+        // eslint-disable-next-line no-await-in-loop
         const { done, value } = await reader.read();
         if (done) break;
         eventId++;
 
+        allEvents.push(value);
+        eventsSinceFlush++;
         if (value.type === "result") resultEvent = value;
 
         // Capture session ID from system/init event and persist immediately
-        if (value.type === "system" && value.subtype === "init" && typeof value.session_id === "string") {
+        if (
+          value.type === "system" &&
+          value.subtype === "init" &&
+          typeof value.session_id === "string"
+        ) {
           capturedSessionId = value.session_id;
           if (body.threadId) {
             updateThreadSessionId(body.project, body.threadId, capturedSessionId).catch(() => {});
           }
         }
 
-        // Collect assistant text blocks and track chars for batched flush
+        // Collect assistant text blocks
         if (value.type === "assistant") {
           const content = value.message?.content;
           if (Array.isArray(content)) {
@@ -161,9 +184,12 @@ app.post("/agent/stream", async (c) => {
               }
             }
           }
-          await maybeFlush();
         }
 
+        // eslint-disable-next-line no-await-in-loop
+        await maybeFlush();
+
+        // eslint-disable-next-line no-await-in-loop
         await sseStream.writeSSE({
           event: value.type,
           data: JSON.stringify(value),
@@ -176,7 +202,8 @@ app.post("/agent/stream", async (c) => {
       const duration = Date.now() - startTime;
       const response = resultEvent ? JSON.stringify(resultEvent) : "";
       const exitCode = resultEvent?.is_error ? 1 : 0;
-      const assistantText = assistantTextParts.length > 0 ? assistantTextParts.join("\n\n") : undefined;
+      const assistantText =
+        assistantTextParts.length > 0 ? assistantTextParts.join("\n\n") : undefined;
       const status: "completed" | "error" = resultEvent && exitCode === 0 ? "completed" : "error";
 
       await updateLog(body.project, log.id, {
@@ -184,6 +211,7 @@ app.post("/agent/stream", async (c) => {
         exitCode,
         duration,
         assistantText,
+        events: allEvents,
         status,
       });
 
@@ -199,7 +227,9 @@ app.post("/agent/stream", async (c) => {
 app.get("/projects", async (c) => {
   try {
     const entries = await readdir(WORKSPACE_DIR, { withFileTypes: true });
-    const projects = entries.filter((e) => e.isDirectory() && e.name !== ".gitkeep").map((e) => e.name);
+    const projects = entries
+      .filter((e) => e.isDirectory() && e.name !== ".gitkeep")
+      .map((e) => e.name);
     return c.json({ projects });
   } catch {
     return c.json({ projects: [] });
@@ -226,12 +256,9 @@ app.get("/threads/:project/:threadId", async (c) => {
   const thread = await getThread(project, threadId);
   if (!thread) return c.json({ error: "thread not found" }, 404);
 
-  // Load all ChatLog entries for this thread
-  const logs = [];
-  for (const logId of thread.logIds) {
-    const log = await getLog(project, logId);
-    if (log) logs.push(log);
-  }
+  // Load all ChatLog entries for this thread in parallel
+  const logResults = await Promise.all(thread.logIds.map((logId) => getLog(project, logId)));
+  const logs = logResults.filter((log) => log !== null);
 
   return c.json({ ...thread, logs });
 });

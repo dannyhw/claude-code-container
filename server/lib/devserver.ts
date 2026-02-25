@@ -67,7 +67,12 @@ export async function detectDevCommand(project: string): Promise<DetectedCommand
     // Expo
     const isExpo = !!deps.expo;
     if (isExpo) {
-      return { command: "bunx expo start --lan --port 8081", containerPort: 8081, urlScheme: "exp", fixedHostPort: 8081 };
+      return {
+        command: "bunx expo start --lan --port 8081",
+        containerPort: 8081,
+        urlScheme: "exp",
+        fixedHostPort: 8081,
+      };
     }
 
     // Check for common dev scripts
@@ -140,16 +145,22 @@ export async function startDevServer(
       "container",
       "run",
       "-d",
-      "--name", containerName,
-      "-p", `${hostPort}:${cPort}`,
-      "--volume", `${projectPath}:/workspace`,
-      "--entrypoint", "/bin/bash",
+      "--name",
+      containerName,
+      "-p",
+      `${hostPort}:${cPort}`,
+      "--volume",
+      `${projectPath}:/workspace`,
+      "--entrypoint",
+      "/bin/bash",
       "claude-dev-env",
       "-c",
       `cd /workspace && ${cmd}`,
     ];
 
-    console.log(`[devserver] Starting for "${project}": ${cmd} (host:${hostPort} -> container:${cPort})`);
+    console.log(
+      `[devserver] Starting for "${project}": ${cmd} (host:${hostPort} -> container:${cPort})`,
+    );
 
     const proc = Bun.spawn(args, { stdout: "pipe", stderr: "pipe" });
     const stdout = await new Response(proc.stdout).text();
@@ -164,7 +175,9 @@ export async function startDevServer(
 
     server.containerId = stdout.trim();
     server.status = "running";
-    console.log(`[devserver] Running for "${project}" at http://localhost:${hostPort} (container: ${server.containerId.slice(0, 12)})`);
+    console.log(
+      `[devserver] Running for "${project}" at http://localhost:${hostPort} (container: ${server.containerId.slice(0, 12)})`,
+    );
 
     return server;
   } catch (err) {
@@ -219,10 +232,11 @@ export function streamDevServerLogs(project: string): ReadableStream<string> {
 
       // Merge stdout and stderr
       const readStream = async (stream: ReadableStream<Uint8Array>) => {
-        const reader = stream.getReader();
         try {
+          const streamReader = stream.getReader();
           while (true) {
-            const { done, value } = await reader.read();
+            // eslint-disable-next-line no-await-in-loop
+            const { done, value } = await streamReader.read();
             if (done) break;
             controller.enqueue(decoder.decode(value));
           }

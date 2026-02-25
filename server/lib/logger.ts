@@ -9,6 +9,8 @@ export interface ChatLog {
   prompt: string;
   response: string;
   assistantText?: string;
+  /** Full ordered list of stream events for replay on thread load */
+  events?: unknown[];
   exitCode: number;
   duration: number;
   timestamp: string;
@@ -46,11 +48,12 @@ export async function logPrompt(project: string, prompt: string): Promise<ChatLo
   return log;
 }
 
-/** Flush intermediate progress (assistantText) to the log while still streaming. */
+/** Flush intermediate progress (assistantText + partial events) to the log while still streaming. */
 export async function flushLogProgress(
   project: string,
   id: string,
   assistantText: string,
+  events?: unknown[],
 ): Promise<void> {
   const filePath = join(LOGS_DIR, project, `${id}.json`);
   try {
@@ -58,6 +61,7 @@ export async function flushLogProgress(
     const log: ChatLog = JSON.parse(data);
     log.assistantText = assistantText;
     log.status = "streaming";
+    if (events) log.events = events;
     await writeFile(filePath, JSON.stringify(log, null, 2));
   } catch {
     // best-effort
@@ -73,6 +77,7 @@ export async function updateLog(
     exitCode: number;
     duration: number;
     assistantText?: string;
+    events?: unknown[];
     status: "completed" | "error";
   },
 ): Promise<ChatLog | null> {
@@ -85,6 +90,7 @@ export async function updateLog(
     log.duration = update.duration;
     log.status = update.status;
     if (update.assistantText) log.assistantText = update.assistantText;
+    if (update.events) log.events = update.events;
     await writeFile(filePath, JSON.stringify(log, null, 2));
     return log;
   } catch {
@@ -166,7 +172,7 @@ async function writeThreads(project: string, threads: ThreadMeta[]): Promise<voi
 
 export async function listThreads(project: string): Promise<ThreadMeta[]> {
   const threads = await readThreads(project);
-  return threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return threads.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function getThread(project: string, threadId: string): Promise<ThreadMeta | null> {

@@ -9,7 +9,7 @@ const ContentBlockSchema = v.object({
   input: v.optional(v.unknown()),
 });
 
-const StreamEventSchema = v.object({
+export const StreamEventSchema = v.object({
   type: v.string(),
   subtype: v.optional(v.string()),
   message: v.optional(
@@ -44,6 +44,7 @@ const ChatLogSchema = v.object({
   prompt: v.string(),
   response: v.string(),
   assistantText: v.optional(v.string()),
+  events: v.optional(v.array(v.unknown())),
   exitCode: v.number(),
   duration: v.number(),
   timestamp: v.string(),
@@ -124,7 +125,9 @@ export async function fetchThreads(project: string): Promise<ThreadMeta[]> {
 }
 
 export async function fetchThread(project: string, threadId: string): Promise<ThreadDetail> {
-  const res = await fetch(`/threads/${encodeURIComponent(project)}/${encodeURIComponent(threadId)}`);
+  const res = await fetch(
+    `/threads/${encodeURIComponent(project)}/${encodeURIComponent(threadId)}`,
+  );
   if (!res.ok) throw new Error("Failed to fetch thread");
   return parseResponse(res, ThreadDetailSchema);
 }
@@ -170,7 +173,9 @@ export async function stopDevServer(project: string): Promise<void> {
   }
 }
 
-export async function detectDevServerCommand(project: string): Promise<{ command: string; containerPort: number } | null> {
+export async function detectDevServerCommand(
+  project: string,
+): Promise<{ command: string; containerPort: number } | null> {
   const res = await fetch(`/devserver/detect/${encodeURIComponent(project)}`);
   if (!res.ok) return null;
   return parseResponse(res, v.object({ command: v.string(), containerPort: v.number() }));
@@ -211,6 +216,7 @@ export async function* streamAgent(
   let buffer = "";
 
   while (true) {
+    // eslint-disable-next-line no-await-in-loop
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });

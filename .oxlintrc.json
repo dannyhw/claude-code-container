@@ -1,0 +1,13 @@
+{
+  "plugins": ["react", "typescript", "import", "unicorn", "jsx-a11y", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": "off",
+    "unicorn/require-module-specifiers": "off"
+  }
+}

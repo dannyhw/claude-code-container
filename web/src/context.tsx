@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
   type Dispatch,
@@ -20,21 +21,26 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────
 
 export type ChatMessage =
-  | { kind: "user"; text: string }
-  | { kind: "assistant-text"; text: string }
-  | { kind: "tool-group"; tools: { name: string; input?: unknown; result?: StreamEvent }[] }
-  | { kind: "result"; event: StreamEvent }
-  | { kind: "system"; event: StreamEvent };
+  | { id: string; kind: "user"; text: string }
+  | { id: string; kind: "assistant-text"; text: string }
+  | {
+      id: string;
+      kind: "tool-group";
+      tools: { id: string; name: string; input?: unknown; result?: StreamEvent }[];
+    }
+  | { id: string; kind: "result"; event: StreamEvent }
+  | { id: string; kind: "system"; event: StreamEvent };
 
-export type TimelineEntry =
-  | { _tag: "user"; text: string }
-  | ({ _tag: "event" } & StreamEvent);
+export type TimelineEntry = { _tag: "user"; text: string } | ({ _tag: "event" } & StreamEvent);
 
 // ── processTimeline ────────────────────────────────────────────────────
 
 export function processTimeline(timeline: TimelineEntry[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
   let currentToolGroup: (ChatMessage & { kind: "tool-group" }) | null = null;
+  let msgId = 0;
+
+  const nextId = () => `msg-${++msgId}`;
 
   const flushToolGroup = () => {
     if (currentToolGroup) {
@@ -46,7 +52,7 @@ export function processTimeline(timeline: TimelineEntry[]): ChatMessage[] {
   for (const entry of timeline) {
     if (entry._tag === "user") {
       flushToolGroup();
-      messages.push({ kind: "user", text: entry.text });
+      messages.push({ id: nextId(), kind: "user", text: entry.text });
       continue;
     }
 
@@ -54,13 +60,13 @@ export function processTimeline(timeline: TimelineEntry[]): ChatMessage[] {
 
     if (event.type === "system") {
       flushToolGroup();
-      messages.push({ kind: "system", event });
+      messages.push({ id: nextId(), kind: "system", event });
       continue;
     }
 
     if (event.type === "result") {
       flushToolGroup();
-      messages.push({ kind: "result", event });
+      messages.push({ id: nextId(), kind: "result", event });
       continue;
     }
 
@@ -69,24 +75,24 @@ export function processTimeline(timeline: TimelineEntry[]): ChatMessage[] {
       if (!Array.isArray(content)) continue;
 
       const textParts: string[] = [];
-      const toolUses: { name: string; input?: unknown }[] = [];
+      const toolUses: { id: string; name: string; input?: unknown }[] = [];
 
       for (const block of content) {
         if (block.type === "text" && block.text) {
           textParts.push(block.text);
         } else if (block.type === "tool_use" && block.name) {
-          toolUses.push({ name: block.name, input: block.input });
+          toolUses.push({ id: nextId(), name: block.name, input: block.input });
         }
       }
 
       if (textParts.length > 0) {
         flushToolGroup();
-        messages.push({ kind: "assistant-text", text: textParts.join("\n\n") });
+        messages.push({ id: nextId(), kind: "assistant-text", text: textParts.join("\n\n") });
       }
 
       if (toolUses.length > 0) {
         if (!currentToolGroup) {
-          currentToolGroup = { kind: "tool-group", tools: [] };
+          currentToolGroup = { id: nextId(), kind: "tool-group", tools: [] };
         }
         for (const tool of toolUses) {
           currentToolGroup.tools.push(tool);
@@ -123,7 +129,11 @@ interface ChatContextValue {
   threads: ThreadMeta[];
   setThreads: Dispatch<SetStateAction<ThreadMeta[]>>;
   /** Submits a prompt. Returns the new threadId if a thread was created, else null. */
-  handleSubmit: (project: string, prompt: string, threadId: string | null) => Promise<string | null>;
+  handleSubmit: (
+    project: string,
+    prompt: string,
+    threadId: string | null,
+  ) => Promise<string | null>;
   /** Ref tracking which threadId is actively being streamed to */
   activeStreamThreadRef: MutableRefObject<string | null>;
 }
@@ -188,7 +198,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             }
             setTimeline((prev) => [...prev, { _tag: "event" as const, ...event }]);
           }
-          fetchThreads(project).then(setThreads).catch(() => {});
+          fetchThreads(project)
+            .then(setThreads)
+            .catch(() => {});
         } catch (err) {
           setError(err instanceof Error ? err.message : String(err));
         } finally {
@@ -202,23 +214,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  return (
-    <ChatContext.Provider
-      value={{
-        timeline,
-        setTimeline,
-        running,
-        sessionId,
-        setSessionId,
-        error,
-        setError,
-        threads,
-        setThreads,
-        handleSubmit,
-        activeStreamThreadRef,
-      }}
-    >
-      {children}
-    </ChatContext.Provider>
+  const value = useMemo<ChatContextValue>(
+    () => ({
+      timeline,
+      setTimeline,
+      running,
+      sessionId,
+      setSessionId,
+      error,
+      setError,
+      threads,
+      setThreads,
+      handleSubmit,
+      activeStreamThreadRef,
+    }),
+    [timeline, running, sessionId, error, threads, handleSubmit],
   );
+
+  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }

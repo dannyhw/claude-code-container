@@ -51,7 +51,7 @@ async function ensureSystemStarted(): Promise<void> {
       throw new Error("Failed to start container system. Run `container system start` manually.");
     }
     // Give the service a moment to be ready
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((r) => setTimeout(r, 2000));
     console.log("Container system started.");
   }
 
@@ -78,7 +78,15 @@ export async function ensureImage(): Promise<void> {
 
   console.log(`Building ${IMAGE_NAME} image...`);
   const build = Bun.spawn(
-    ["container", "build", "--tag", IMAGE_NAME, "--file", join(CONTAINER_DIR, "Dockerfile"), CONTAINER_DIR],
+    [
+      "container",
+      "build",
+      "--tag",
+      IMAGE_NAME,
+      "--file",
+      join(CONTAINER_DIR, "Dockerfile"),
+      CONTAINER_DIR,
+    ],
     { stdout: "inherit", stderr: "inherit" },
   );
   const exitCode = await build.exited;
@@ -124,16 +132,23 @@ function buildContainerArgs(project: string, prompt: string, opts: RunOptions = 
     "container",
     "run",
     "--rm",
-    "--cpus", String(cpus),
-    "--memory", memory,
-    "--env", `CLAUDE_CODE_OAUTH_TOKEN=${token}`,
-    "--volume", `${projectPath}:/workspace`,
-    "--volume", `${notesPath}:/notes`,
-    "--volume", `${statePath}:/home/dev/.claude/projects/-workspace`,
+    "--cpus",
+    String(cpus),
+    "--memory",
+    memory,
+    "--env",
+    `CLAUDE_CODE_OAUTH_TOKEN=${token}`,
+    "--volume",
+    `${projectPath}:/workspace`,
+    "--volume",
+    `${notesPath}:/notes`,
+    "--volume",
+    `${statePath}:/home/dev/.claude/projects/-workspace`,
     IMAGE_NAME,
     "-p",
     "--verbose",
-    "--output-format", "stream-json",
+    "--output-format",
+    "stream-json",
   ];
 
   if (opts.sessionId) {
@@ -153,7 +168,9 @@ function logStreamEvent(event: ClaudeStreamEvent): void {
   switch (event.type) {
     case "system":
       if (event.subtype === "init") {
-        console.log(`[claude] Session started (model: ${event.model}, session: ${event.session_id})`);
+        console.log(
+          `[claude] Session started (model: ${event.model}, session: ${event.session_id})`,
+        );
       }
       break;
     case "assistant": {
@@ -170,7 +187,9 @@ function logStreamEvent(event: ClaudeStreamEvent): void {
       break;
     }
     case "result":
-      console.log(`[claude] Result: is_error=${event.is_error}, turns=${event.num_turns}, cost=$${event.total_cost_usd}`);
+      console.log(
+        `[claude] Result: is_error=${event.is_error}, turns=${event.num_turns}, cost=$${event.total_cost_usd}`,
+      );
       break;
   }
 }
@@ -187,7 +206,9 @@ export async function streamClaudeFromContainer(
   const memory = opts.memory ?? "4g";
   const timeout = opts.timeout;
 
-  console.log(`[claude] Streaming prompt for project "${project}" (cpus=${cpus}, memory=${memory})`);
+  console.log(
+    `[claude] Streaming prompt for project "${project}" (cpus=${cpus}, memory=${memory})`,
+  );
   console.log(`[claude] Prompt: ${prompt.slice(0, 100)}${prompt.length > 100 ? "..." : ""}`);
 
   const proc = Bun.spawn(args, {
@@ -197,10 +218,11 @@ export async function streamClaudeFromContainer(
 
   // Pipe stderr to console in background
   const stderrDrain = (async () => {
-    const reader = proc.stderr.getReader();
     const decoder = new TextDecoder();
+    const stderrReader = proc.stderr.getReader();
     while (true) {
-      const { done, value } = await reader.read();
+      // eslint-disable-next-line no-await-in-loop
+      const { done, value } = await stderrReader.read();
       if (done) break;
       process.stderr.write(`[claude:stderr] ${decoder.decode(value)}`);
     }
@@ -221,6 +243,7 @@ export async function streamClaudeFromContainer(
 
       try {
         while (true) {
+          // eslint-disable-next-line no-await-in-loop
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value);
@@ -285,11 +308,12 @@ export async function runClaudeInContainer(
 
   // Stream stderr to console
   const stderrChunks: string[] = [];
-  const stderrReader = (async () => {
-    const reader = proc.stderr.getReader();
+  const stderrDrainer = (async () => {
     const decoder = new TextDecoder();
+    const errReader = proc.stderr.getReader();
     while (true) {
-      const { done, value } = await reader.read();
+      // eslint-disable-next-line no-await-in-loop
+      const { done, value } = await errReader.read();
       if (done) break;
       const text = decoder.decode(value);
       stderrChunks.push(text);
@@ -301,11 +325,12 @@ export async function runClaudeInContainer(
   const stdoutChunks: string[] = [];
   let resultEvent: string | null = null;
   const stdoutReader = (async () => {
-    const reader = proc.stdout.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    const outReader = proc.stdout.getReader();
     while (true) {
-      const { done, value } = await reader.read();
+      // eslint-disable-next-line no-await-in-loop
+      const { done, value } = await outReader.read();
       if (done) break;
       buffer += decoder.decode(value);
       const lines = buffer.split("\n");
@@ -343,7 +368,7 @@ export async function runClaudeInContainer(
       }, timeout)
     : null;
 
-  await Promise.all([stdoutReader, stderrReader]);
+  await Promise.all([stdoutReader, stderrDrainer]);
   const exitCode = await proc.exited;
   const stderr = stderrChunks.join("");
   const stdout = resultEvent ?? stdoutChunks.join("\n");

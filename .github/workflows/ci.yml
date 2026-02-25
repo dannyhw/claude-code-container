@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Type Check, Lint & Format
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check (server + cli)
+        run: bun run check
+
+      - name: Type check (web)
+        run: cd web && npx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint --deny-warnings
+
+      - name: Format check
+        run: bun run fmt:check
+
+      - name: Build web
+        run: bun run build:web

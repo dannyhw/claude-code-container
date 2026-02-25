@@ -95,9 +95,11 @@ app.get("/devserver/logs/:project", async (c) => {
     let id = 0;
     try {
       while (true) {
+        // eslint-disable-next-line no-await-in-loop
         const { done, value } = await reader.read();
         if (done) break;
         id++;
+        // eslint-disable-next-line no-await-in-loop
         await sseStream.writeSSE({
           event: "log",
           data: value,

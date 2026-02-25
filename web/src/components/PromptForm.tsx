@@ -10,15 +10,18 @@ export function PromptForm({ onSubmit, disabled }: Props) {
   const [focused, setFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = useCallback((e: FormEvent) => {
-    e.preventDefault();
-    if (!prompt.trim() || disabled) return;
-    onSubmit(prompt.trim());
-    setPrompt("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "";
-    }
-  }, [prompt, disabled, onSubmit]);
+  const handleSubmit = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      if (!prompt.trim() || disabled) return;
+      onSubmit(prompt.trim());
+      setPrompt("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "";
+      }
+    },
+    [prompt, disabled, onSubmit],
+  );
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -34,9 +37,7 @@ export function PromptForm({ onSubmit, disabled }: Props) {
       <div
         className={[
           "rounded-xl border bg-surface transition-[border-color,box-shadow] duration-150",
-          focused
-            ? "border-bdr-light shadow-[0_0_0_1px_var(--color-bdr-light)]"
-            : "border-bdr",
+          focused ? "border-bdr-light shadow-[0_0_0_1px_var(--color-bdr-light)]" : "border-bdr",
         ].join(" ")}
       >
         {/* Textarea */}
@@ -82,15 +83,34 @@ export function PromptForm({ onSubmit, disabled }: Props) {
           >
             {disabled ? (
               <>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="animate-spin">
-                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="8 6" />
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  className="animate-spin"
+                >
+                  <circle
+                    cx="7"
+                    cy="7"
+                    r="5.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeDasharray="8 6"
+                  />
                 </svg>
                 <span>Running</span>
               </>
             ) : (
               <>
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <path d="M7 12V2M7 2L3 6M7 2l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M7 12V2M7 2L3 6M7 2l4 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <span>Send</span>
               </>

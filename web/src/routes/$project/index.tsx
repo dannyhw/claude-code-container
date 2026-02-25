@@ -17,9 +17,7 @@ function ProjectIndex() {
           />
         </svg>
       </div>
-      <div className="text-[15px] font-medium text-tx -tracking-tight">
-        Start a conversation
-      </div>
+      <div className="text-[15px] font-medium text-tx -tracking-tight">Start a conversation</div>
       <div className="text-[13px] text-tx-3 text-center max-w-80 leading-relaxed">
         Send a prompt to begin. The agent runs in an isolated container.
       </div>

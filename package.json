@@ -2,7 +2,11 @@
   "name": "claude-code-container",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["server", "cli", "web"],
+  "workspaces": [
+    "server",
+    "cli",
+    "web"
+  ],
   "scripts": {
     "build-image": "container build --tag claude-dev-env --file container/Dockerfile container/",
     "rebuild-image": "container image rm claude-dev-env 2>/dev/null; container build --tag claude-dev-env --file container/Dockerfile container/",
@@ -12,10 +16,17 @@
     "build:web": "cd web && bunx --bun vite build",
     "start": "bun run build:web && bun run server",
     "cli": "bun run cli/index.ts",
-    "check": "tsc --build server cli"
+    "check": "tsc --build server cli",
+    "lint": "oxlint server/ cli/ web/src/ web/vite.config.ts --ignore-pattern=routeTree.gen.ts --tsconfig=web/tsconfig.json",
+    "lint:fix": "oxlint server/ cli/ web/src/ web/vite.config.ts --ignore-pattern=routeTree.gen.ts --tsconfig=web/tsconfig.json --fix",
+    "fmt": "oxfmt server/ cli/ web/src/ web/vite.config.ts",
+    "fmt:check": "oxfmt --check server/ cli/ web/src/ web/vite.config.ts",
+    "ci": "bun run check && cd web && npx tsc --noEmit && cd .. && bun run lint --deny-warnings && bun run fmt:check"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0",
     "typescript": "^5"
   }
 }

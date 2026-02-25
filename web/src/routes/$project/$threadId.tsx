@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { fetchThread, type ChatLog, type StreamEvent } from "../../api";
+import { fetchThread, type ChatLog, type StreamEvent, StreamEventSchema } from "../../api";
 import { useChatContext, processTimeline, type TimelineEntry } from "../../context";
 import { StreamView } from "../../components/StreamView";
+import * as v from "valibot";
 
 export const Route = createFileRoute("/$project/$threadId")({
   component: ThreadView,
@@ -43,39 +44,57 @@ function ThreadView() {
 
         for (const log of detail.logs) {
           const incomplete = log.status === "pending" || log.status === "streaming";
-          const failedWithNoContent = incomplete && !log.assistantText;
 
-          // Truly failed: no content was ever captured — offer retry
-          if (failedWithNoContent) {
-            pending.push(log);
-            continue;
-          }
-
-          // Normal or partially recovered log — render what we have
-          restored.push({ _tag: "user", text: log.prompt });
-          if (log.assistantText) {
-            restored.push({
-              _tag: "event",
-              type: "assistant",
-              message: { content: [{ type: "text", text: log.assistantText }] },
-            });
-          }
-          // If the stream was interrupted, show an "interrupted" result marker
+          // Incomplete stream — show whatever partial content we have and offer retry
           if (incomplete) {
-            const interruptedEvent: StreamEvent = {
-              type: "result",
-              is_error: true,
-              interrupted: true,
-            };
-            restored.push({ _tag: "event", ...interruptedEvent });
-          } else if (log.response) {
-            try {
-              const parsed = JSON.parse(log.response);
-              if (parsed.type === "result") {
-                restored.push({ _tag: "event", ...parsed });
+            pending.push(log);
+          }
+
+          // If no content at all, nothing to show in the timeline
+          if (incomplete && !log.assistantText && !log.events?.length) continue;
+
+          restored.push({ _tag: "user", text: log.prompt });
+
+          // Prefer replaying stored events (full fidelity — includes tool calls/results)
+          if (log.events?.length) {
+            for (const raw of log.events) {
+              const result = v.safeParse(StreamEventSchema, raw);
+              if (result.success) {
+                restored.push({ _tag: "event", ...result.output });
               }
-            } catch {
-              // response wasn't a JSON event, skip
+            }
+            // If the stream was cut before a result event arrived, add an interrupted marker
+            if (incomplete) {
+              restored.push({
+                _tag: "event",
+                type: "result",
+                is_error: true,
+                interrupted: true,
+              } as TimelineEntry);
+            }
+          } else {
+            // Legacy fallback: reconstruct from assistantText + response only
+            if (log.assistantText) {
+              restored.push({
+                _tag: "event",
+                type: "assistant",
+                message: { content: [{ type: "text", text: log.assistantText }] },
+              });
+            }
+            if (incomplete) {
+              const interruptedEvent: StreamEvent = {
+                type: "result",
+                is_error: true,
+                interrupted: true,
+              };
+              restored.push({ _tag: "event", ...interruptedEvent });
+            } else if (log.response) {
+              try {
+                const parsed = JSON.parse(log.response);
+                if (parsed.type === "result") restored.push({ _tag: "event", ...parsed });
+              } catch {
+                // not a JSON event
+              }
             }
           }
         }
@@ -112,7 +131,12 @@ function ThreadView() {
         <div className="flex items-center gap-2">
           <svg width="14" height="14" viewBox="0 0 14 14" className="animate-spin-slow" fill="none">
             <circle cx="7" cy="7" r="5.5" stroke="var(--color-tx-3)" strokeWidth="1.5" />
-            <path d="M12.5 7a5.5 5.5 0 0 0-5.5-5.5" stroke="var(--color-tx)" strokeWidth="1.5" strokeLinecap="round" />
+            <path
+              d="M12.5 7a5.5 5.5 0 0 0-5.5-5.5"
+              stroke="var(--color-tx)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
           </svg>
           <span className="text-sm text-tx-2">Loading thread...</span>
         </div>
@@ -133,7 +157,12 @@ function ThreadView() {
               <div className="shrink-0 mt-0.5">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <circle cx="7" cy="7" r="6" stroke="var(--color-err)" strokeWidth="1.2" />
-                  <path d="M7 4v3.5M7 9.5v.5" stroke="var(--color-err)" strokeWidth="1.3" strokeLinecap="round" />
+                  <path
+                    d="M7 4v3.5M7 9.5v.5"
+                    stroke="var(--color-err)"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
@@ -154,7 +183,12 @@ function ThreadView() {
                   aria-label="Dismiss"
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                    <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    <path
+                      d="M2 2l6 6M8 2l-6 6"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeLinecap="round"
+                    />
                   </svg>
                 </button>
               </div>

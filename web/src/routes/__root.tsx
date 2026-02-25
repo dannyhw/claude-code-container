@@ -145,9 +145,7 @@ function RootLayout() {
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
                     <Tooltip.Positioner sideOffset={6} side="bottom">
-                      <Tooltip.Popup className={tooltipPopupClass}>
-                        Expand sidebar
-                      </Tooltip.Popup>
+                      <Tooltip.Popup className={tooltipPopupClass}>Expand sidebar</Tooltip.Popup>
                     </Tooltip.Positioner>
                   </Tooltip.Portal>
                 </Tooltip.Root>

@@ -18,9 +18,7 @@ function IconTooltip({ label, children }: { label: string; children: React.React
       <Tooltip.Trigger render={children} />
       <Tooltip.Portal>
         <Tooltip.Positioner sideOffset={6} side="bottom">
-          <Tooltip.Popup className={tooltipPopupClass}>
-            {label}
-          </Tooltip.Popup>
+          <Tooltip.Popup className={tooltipPopupClass}>{label}</Tooltip.Popup>
         </Tooltip.Positioner>
       </Tooltip.Portal>
     </Tooltip.Root>
@@ -47,10 +45,14 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
       setCommand("");
       return;
     }
-    fetchDevServerStatus(project).then(setInfo).catch(() => setInfo(null));
-    detectDevServerCommand(project).then((result) => {
-      if (result) setCommand(result.command);
-    }).catch(() => {});
+    fetchDevServerStatus(project)
+      .then(setInfo)
+      .catch(() => setInfo(null));
+    detectDevServerCommand(project)
+      .then((result) => {
+        if (result) setCommand(result.command);
+      })
+      .catch(() => {});
   }, [project]);
 
   const handleStart = useCallback(async () => {
@@ -106,12 +108,38 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
                   >
                     {copied ? (
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6.5l3 3 5-6" stroke="var(--color-ok)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path
+                          d="M2 6.5l3 3 5-6"
+                          stroke="var(--color-ok)"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     ) : (
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-tx-2 hover:text-tx">
-                        <rect x="4" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
-                        <path d="M8 4H2.5A1.5 1.5 0 001 5.5V11a1 1 0 001 1h5.5A1.5 1.5 0 009 10.5V4z" stroke="currentColor" strokeWidth="1.2" fill="none" />
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        className="text-tx-2 hover:text-tx"
+                      >
+                        <rect
+                          x="4"
+                          y="1"
+                          width="7"
+                          height="7"
+                          rx="1.5"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          fill="none"
+                        />
+                        <path
+                          d="M8 4H2.5A1.5 1.5 0 001 5.5V11a1 1 0 001 1h5.5A1.5 1.5 0 009 10.5V4z"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          fill="none"
+                        />
                       </svg>
                     )}
                   </button>
@@ -136,7 +164,12 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
                 ].join(" ")}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 3h8M2 6h6M2 9h7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <path
+                    d="M2 3h8M2 6h6M2 9h7"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </button>
             </IconTooltip>
@@ -156,9 +189,20 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
         {/* Starting state */}
         {(isStarting || loading) && (
           <div className="flex items-center gap-1.5 animate-fadein">
-            <svg width="14" height="14" viewBox="0 0 14 14" className="animate-spin-slow" fill="none">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              className="animate-spin-slow"
+              fill="none"
+            >
               <circle cx="7" cy="7" r="5.5" stroke="var(--color-tx-3)" strokeWidth="1.5" />
-              <path d="M12.5 7a5.5 5.5 0 0 0-5.5-5.5" stroke="var(--color-tx)" strokeWidth="1.5" strokeLinecap="round" />
+              <path
+                d="M12.5 7a5.5 5.5 0 0 0-5.5-5.5"
+                stroke="var(--color-tx)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
             <span className="text-xs text-tx-2">Starting server...</span>
           </div>
@@ -171,7 +215,10 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
               {error}
             </span>
             <button
-              onClick={() => { setError(null); handleStart(); }}
+              onClick={() => {
+                setError(null);
+                handleStart();
+              }}
               className="text-xs text-tx-2 hover:text-tx transition-colors cursor-pointer"
             >
               Retry
@@ -182,9 +229,7 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
         {/* Idle — popover with command input */}
         {!isRunning && !isStarting && !loading && !error && (
           <Popover.Root>
-            <Popover.Trigger
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-tx-2 hover:text-tx hover:bg-hovr transition-colors cursor-pointer"
-            >
+            <Popover.Trigger className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-tx-2 hover:text-tx hover:bg-hovr transition-colors cursor-pointer">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M3 1.5l7 4.5-7 4.5V1.5z" fill="currentColor" />
               </svg>
@@ -198,6 +243,7 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
                   </Popover.Title>
                   <div className="flex flex-col gap-2">
                     <input
+                      ref={(el) => el?.focus()}
                       type="text"
                       value={command}
                       onChange={(e) => setCommand(e.target.value)}
@@ -206,7 +252,6 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
                       }}
                       placeholder="npm run dev -- --host 0.0.0.0"
                       className="h-7 px-2 text-xs font-mono bg-surface border border-bdr rounded-md w-full text-tx placeholder:text-tx-3 outline-none focus:border-bdr-light transition-colors"
-                      autoFocus
                     />
                     <button
                       onClick={handleStart}
@@ -231,13 +276,20 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
   );
 }
 
+interface LogLine {
+  id: number;
+  text: string;
+}
+
 function LogsPanel({ project }: { project: string }) {
-  const [lines, setLines] = useState<string[]>([]);
+  const [lines, setLines] = useState<LogLine[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const lineIdRef = useRef(0);
 
   useEffect(() => {
     setLines([]);
+    lineIdRef.current = 0;
     const abort = new AbortController();
     abortRef.current = abort;
 
@@ -253,6 +305,7 @@ function LogsPanel({ project }: { project: string }) {
         let buffer = "";
 
         while (true) {
+          // eslint-disable-next-line no-await-in-loop
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
@@ -264,8 +317,9 @@ function LogsPanel({ project }: { project: string }) {
             if (part.startsWith("data:")) {
               const text = part.slice(5);
               if (text) {
+                const id = ++lineIdRef.current;
                 setLines((prev) => {
-                  const next = [...prev, text];
+                  const next = [...prev, { id, text }];
                   // Keep last 500 lines
                   return next.length > 500 ? next.slice(-500) : next;
                 });
@@ -296,11 +350,11 @@ function LogsPanel({ project }: { project: string }) {
           <span className="text-[11px] text-tx-3 font-mono">{project}</span>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-2 font-mono text-xs leading-5 text-tx-2">
-          {lines.length === 0 && (
-            <span className="text-tx-3">Waiting for output...</span>
-          )}
-          {lines.map((line, i) => (
-            <div key={i} className="whitespace-pre-wrap break-all">{line}</div>
+          {lines.length === 0 && <span className="text-tx-3">Waiting for output...</span>}
+          {lines.map((line) => (
+            <div key={line.id} className="whitespace-pre-wrap break-all">
+              {line.text}
+            </div>
           ))}
           <div ref={bottomRef} />
         </div>
