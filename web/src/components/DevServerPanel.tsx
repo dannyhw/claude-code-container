@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Popover } from "@base-ui/react/popover";
+import { Tooltip } from "@base-ui/react/tooltip";
 import {
   startDevServer,
   stopDevServer,
@@ -6,6 +8,24 @@ import {
   detectDevServerCommand,
   type DevServerInfo,
 } from "../api";
+
+const tooltipPopupClass =
+  "px-2 py-1 bg-elevated border border-bdr rounded-md text-[11px] text-tx-2 font-sans shadow-lg shadow-black/40 transition-[opacity,transform] duration-150 data-[starting-style]:opacity-0 data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[ending-style]:scale-95";
+
+function IconTooltip({ label, children }: { label: string; children: React.ReactElement }) {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger render={children} />
+      <Tooltip.Portal>
+        <Tooltip.Positioner sideOffset={6} side="bottom">
+          <Tooltip.Popup className={tooltipPopupClass}>
+            {label}
+          </Tooltip.Popup>
+        </Tooltip.Positioner>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}
 
 interface DevServerPanelProps {
   project: string | null;
@@ -15,7 +35,6 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
   const [info, setInfo] = useState<DevServerInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCommandInput, setShowCommandInput] = useState(false);
   const [command, setCommand] = useState("");
   const [showLogs, setShowLogs] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -41,7 +60,6 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
     try {
       const result = await startDevServer(project, command || undefined);
       setInfo(result);
-      setShowCommandInput(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -68,7 +86,7 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
   const isStarting = status === "starting";
 
   return (
-    <>
+    <Tooltip.Provider delay={400} closeDelay={0}>
       <div className="flex items-center gap-2">
         {/* Running state */}
         {isRunning && info && (
@@ -77,26 +95,27 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
             {info.url.startsWith("exp://") ? (
               <>
                 <span className="text-xs font-mono text-tx-2 select-all">{info.url}</span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(info.url);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  }}
-                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-hovr transition-colors cursor-pointer"
-                  title="Copy URL"
-                >
-                  {copied ? (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6.5l3 3 5-6" stroke="var(--color-ok)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-tx-2 hover:text-tx">
-                      <rect x="4" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
-                      <path d="M8 4H2.5A1.5 1.5 0 001 5.5V11a1 1 0 001 1h5.5A1.5 1.5 0 009 10.5V4z" stroke="currentColor" strokeWidth="1.2" fill="none" />
-                    </svg>
-                  )}
-                </button>
+                <IconTooltip label="Copy URL">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(info.url);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    }}
+                    className="flex items-center justify-center w-5 h-5 rounded hover:bg-hovr transition-colors cursor-pointer"
+                  >
+                    {copied ? (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6.5l3 3 5-6" stroke="var(--color-ok)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-tx-2 hover:text-tx">
+                        <rect x="4" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
+                        <path d="M8 4H2.5A1.5 1.5 0 001 5.5V11a1 1 0 001 1h5.5A1.5 1.5 0 009 10.5V4z" stroke="currentColor" strokeWidth="1.2" fill="none" />
+                      </svg>
+                    )}
+                  </button>
+                </IconTooltip>
               </>
             ) : (
               <a
@@ -108,27 +127,29 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
                 {info.url}
               </a>
             )}
-            <button
-              onClick={() => setShowLogs((v) => !v)}
-              className={[
-                "flex items-center justify-center w-5 h-5 rounded transition-colors cursor-pointer",
-                showLogs ? "bg-hovr text-tx" : "hover:bg-hovr text-tx-2 hover:text-tx",
-              ].join(" ")}
-              title="Toggle logs"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M2 3h8M2 6h6M2 9h7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            </button>
-            <button
-              onClick={handleStop}
-              className="flex items-center justify-center w-5 h-5 rounded hover:bg-hovr transition-colors cursor-pointer"
-              title="Stop dev server"
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <rect x="1" y="1" width="8" height="8" rx="1" fill="var(--color-err)" />
-              </svg>
-            </button>
+            <IconTooltip label="Toggle logs">
+              <button
+                onClick={() => setShowLogs((v) => !v)}
+                className={[
+                  "flex items-center justify-center w-5 h-5 rounded transition-colors cursor-pointer",
+                  showLogs ? "bg-hovr text-tx" : "hover:bg-hovr text-tx-2 hover:text-tx",
+                ].join(" ")}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 3h8M2 6h6M2 9h7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </IconTooltip>
+            <IconTooltip label="Stop server">
+              <button
+                onClick={handleStop}
+                className="flex items-center justify-center w-5 h-5 rounded hover:bg-hovr transition-colors cursor-pointer"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <rect x="1" y="1" width="8" height="8" rx="1" fill="var(--color-err)" />
+                </svg>
+              </button>
+            </IconTooltip>
           </div>
         )}
 
@@ -139,7 +160,7 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
               <circle cx="7" cy="7" r="5.5" stroke="var(--color-tx-3)" strokeWidth="1.5" />
               <path d="M12.5 7a5.5 5.5 0 0 0-5.5-5.5" stroke="var(--color-tx)" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
-            <span className="text-xs text-tx-2">Starting server…</span>
+            <span className="text-xs text-tx-2">Starting server...</span>
           </div>
         )}
 
@@ -158,53 +179,55 @@ export function DevServerPanel({ project }: DevServerPanelProps) {
           </div>
         )}
 
-        {/* Idle — command input or preview button */}
+        {/* Idle — popover with command input */}
         {!isRunning && !isStarting && !loading && !error && (
-          showCommandInput ? (
-            <div className="flex items-center gap-1.5 animate-fadein">
-              <input
-                type="text"
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleStart();
-                  if (e.key === "Escape") setShowCommandInput(false);
-                }}
-                placeholder="npm run dev -- --host 0.0.0.0"
-                className="h-6 px-2 text-xs font-mono bg-surface border border-bdr rounded w-56 text-tx placeholder:text-tx-3 outline-none focus:border-bdr-light"
-                autoFocus
-              />
-              <button
-                onClick={handleStart}
-                className="flex items-center justify-center h-6 px-2 rounded text-xs text-tx-2 hover:text-tx bg-surface border border-bdr hover:border-bdr-light transition-colors cursor-pointer"
-              >
-                Start
-              </button>
-              <button
-                onClick={() => setShowCommandInput(false)}
-                className="text-xs text-tx-3 hover:text-tx-2 transition-colors cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowCommandInput(true)}
+          <Popover.Root>
+            <Popover.Trigger
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-tx-2 hover:text-tx hover:bg-hovr transition-colors cursor-pointer"
-              title="Start dev server to preview project"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M3 1.5l7 4.5-7 4.5V1.5z" fill="currentColor" />
               </svg>
               Preview
-            </button>
-          )
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Positioner sideOffset={8} side="bottom" align="end">
+                <Popover.Popup className="bg-elevated border border-bdr rounded-lg shadow-lg shadow-black/40 p-3 w-72 outline-none transition-[opacity,transform] duration-150 data-[starting-style]:opacity-0 data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[ending-style]:scale-95">
+                  <Popover.Title className="text-xs font-medium text-tx mb-2">
+                    Start dev server
+                  </Popover.Title>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="text"
+                      value={command}
+                      onChange={(e) => setCommand(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleStart();
+                      }}
+                      placeholder="npm run dev -- --host 0.0.0.0"
+                      className="h-7 px-2 text-xs font-mono bg-surface border border-bdr rounded-md w-full text-tx placeholder:text-tx-3 outline-none focus:border-bdr-light transition-colors"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleStart}
+                      className="flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-xs font-medium bg-tx text-root cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M3 1.5l7 4.5-7 4.5V1.5z" fill="currentColor" />
+                      </svg>
+                      Start
+                    </button>
+                  </div>
+                </Popover.Popup>
+              </Popover.Positioner>
+            </Popover.Portal>
+          </Popover.Root>
         )}
       </div>
 
       {/* Logs panel */}
       {showLogs && project && <LogsPanel project={project} />}
-    </>
+    </Tooltip.Provider>
   );
 }
 
@@ -274,7 +297,7 @@ function LogsPanel({ project }: { project: string }) {
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-2 font-mono text-xs leading-5 text-tx-2">
           {lines.length === 0 && (
-            <span className="text-tx-3">Waiting for output…</span>
+            <span className="text-tx-3">Waiting for output...</span>
           )}
           {lines.map((line, i) => (
             <div key={i} className="whitespace-pre-wrap break-all">{line}</div>

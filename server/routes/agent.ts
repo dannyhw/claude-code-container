@@ -4,7 +4,15 @@ import { mkdir, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { runClaudeInContainer, streamClaudeFromContainer } from "../lib/container";
 import type { ClaudeStreamEvent } from "../lib/container";
-import { getLog, listLogs, logChat } from "../lib/logger";
+import {
+  getLog,
+  listLogs,
+  logChat,
+  listThreads,
+  getThread,
+  createThread,
+  appendToThread,
+} from "../lib/logger";
 
 const WORKSPACE_DIR = resolve(import.meta.dir, "../../workspace");
 
@@ -18,6 +26,7 @@ interface AgentBody {
   cpus?: number;
   memory?: string;
   sessionId?: string;
+  threadId?: string;
 }
 
 function validateAgentBody(body: AgentBody): string | null {
@@ -81,6 +90,8 @@ app.post("/agent/stream", async (c) => {
 
   let eventId = 0;
   let resultEvent: ClaudeStreamEvent | null = null;
+  let capturedSessionId: string | null = null;
+  const assistantTextParts: string[] = [];
   const startTime = Date.now();
 
   return streamSSE(c, async (sseStream) => {
@@ -90,7 +101,26 @@ app.post("/agent/stream", async (c) => {
         const { done, value } = await reader.read();
         if (done) break;
         eventId++;
+
         if (value.type === "result") resultEvent = value;
+
+        // Capture session ID from system/init event
+        if (value.type === "system" && value.subtype === "init" && value.session_id) {
+          capturedSessionId = value.session_id as string;
+        }
+
+        // Collect assistant text blocks
+        if (value.type === "assistant") {
+          const content = (value as any).message?.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === "text" && block.text) {
+                assistantTextParts.push(block.text);
+              }
+            }
+          }
+        }
+
         await sseStream.writeSSE({
           event: value.type,
           data: JSON.stringify(value),
@@ -103,7 +133,13 @@ app.post("/agent/stream", async (c) => {
       const duration = Date.now() - startTime;
       const response = resultEvent ? JSON.stringify(resultEvent) : "";
       const exitCode = resultEvent?.is_error ? 1 : 0;
-      await logChat(body.project, body.prompt, response, exitCode, duration);
+      const assistantText = assistantTextParts.length > 0 ? assistantTextParts.join("\n\n") : undefined;
+      const log = await logChat(body.project, body.prompt, response, exitCode, duration, assistantText);
+
+      // Append to thread if threadId provided
+      if (body.threadId) {
+        await appendToThread(body.project, body.threadId, log.id, capturedSessionId ?? undefined);
+      }
     }
   });
 });
@@ -127,6 +163,36 @@ app.post("/projects", async (c) => {
   const projectPath = join(WORKSPACE_DIR, body.name);
   await mkdir(projectPath, { recursive: true });
   return c.json({ name: body.name, path: projectPath }, 201);
+});
+
+// Threads
+app.get("/threads/:project", async (c) => {
+  const project = c.req.param("project");
+  const threads = await listThreads(project);
+  return c.json({ project, threads });
+});
+
+app.get("/threads/:project/:threadId", async (c) => {
+  const { project, threadId } = c.req.param();
+  const thread = await getThread(project, threadId);
+  if (!thread) return c.json({ error: "thread not found" }, 404);
+
+  // Load all ChatLog entries for this thread
+  const logs = [];
+  for (const logId of thread.logIds) {
+    const log = await getLog(project, logId);
+    if (log) logs.push(log);
+  }
+
+  return c.json({ ...thread, logs });
+});
+
+app.post("/threads/:project", async (c) => {
+  const project = c.req.param("project");
+  const body = await c.req.json<{ title: string }>();
+  if (!body.title) return c.json({ error: "title is required" }, 400);
+  const thread = await createThread(project, body.title);
+  return c.json(thread, 201);
 });
 
 // Logs

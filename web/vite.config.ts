@@ -9,6 +9,7 @@ export default defineConfig({
       "/agent": { target: "http://localhost:3847", timeout: 0 },
       "/projects": "http://localhost:3847",
       "/logs": "http://localhost:3847",
+      "/threads": "http://localhost:3847",
       "/health": "http://localhost:3847",
       "/devserver": { target: "http://localhost:3847", timeout: 0 },
     },

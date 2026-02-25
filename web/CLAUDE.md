@@ -15,7 +15,9 @@ We use **@base-ui/react** for base components. Docs: https://base-ui.com
 
 _(Update this list as you adopt new Base UI components)_
 
-- **Select** — Project picker in `PromptForm.tsx`
+- **Collapsible** — Expand/collapse in `ToolGroup.tsx` (nested: outer group + inner tool details)
+- **Popover** — Dev server command input in `DevServerPanel.tsx`
+- **Tooltip** — Icon button labels in `DevServerPanel.tsx`, `Sidebar.tsx`, `App.tsx`
 
 ### Setup notes
 

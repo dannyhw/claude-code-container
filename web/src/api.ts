@@ -17,6 +17,30 @@ export interface StreamEvent {
   [key: string]: unknown;
 }
 
+export interface ThreadMeta {
+  id: string;
+  title: string;
+  sessionId: string | null;
+  logIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatLog {
+  id: string;
+  project: string;
+  prompt: string;
+  response: string;
+  assistantText?: string;
+  exitCode: number;
+  duration: number;
+  timestamp: string;
+}
+
+export interface ThreadDetail extends ThreadMeta {
+  logs: ChatLog[];
+}
+
 export async function fetchProjects(): Promise<string[]> {
   const res = await fetch("/projects");
   if (!res.ok) throw new Error("Failed to fetch projects");
@@ -36,6 +60,34 @@ export async function createProject(name: string): Promise<string> {
   }
   const data = await res.json();
   return data.name;
+}
+
+// Threads
+
+export async function fetchThreads(project: string): Promise<ThreadMeta[]> {
+  const res = await fetch(`/threads/${encodeURIComponent(project)}`);
+  if (!res.ok) throw new Error("Failed to fetch threads");
+  const data = await res.json();
+  return data.threads;
+}
+
+export async function fetchThread(project: string, threadId: string): Promise<ThreadDetail> {
+  const res = await fetch(`/threads/${encodeURIComponent(project)}/${encodeURIComponent(threadId)}`);
+  if (!res.ok) throw new Error("Failed to fetch thread");
+  return res.json();
+}
+
+export async function createNewThread(project: string, title: string): Promise<ThreadMeta> {
+  const res = await fetch(`/threads/${encodeURIComponent(project)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error ?? "Failed to create thread");
+  }
+  return res.json();
 }
 
 // Dev server
@@ -99,11 +151,12 @@ export async function* streamAgent(
   project: string,
   prompt: string,
   sessionId?: string,
+  threadId?: string,
 ): AsyncGenerator<StreamEvent> {
   const res = await fetch("/agent/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ project, prompt, sessionId }),
+    body: JSON.stringify({ project, prompt, sessionId, threadId }),
   });
 
   if (!res.ok) {
